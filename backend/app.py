@@ -14,8 +14,19 @@ def get_db():
 def add_stall():
     data = request.json
     conn = get_db()
-    conn.execute("INSERT INTO stalls (name, location, category, rating) VALUES (?, ?, ?, ?)",
-                 (data["name"], data["location"], data["category"], data["rating"]))
+    conn.execute(
+        "INSERT INTO stalls (name, state, city, location, phone, category, rating, style) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            data["name"],
+            data.get("state", ""),
+            data.get("city", ""),
+            data.get("location", ""),
+            data.get("phone", ""),
+            data["category"],
+            data["rating"],
+            data.get("style", "Traditional")
+        )
+    )
     conn.commit()
     return jsonify({"status": "success"})
 
@@ -27,9 +38,33 @@ def home():
 
 @app.route("/stalls", methods=["GET"])
 def get_stalls():
+    state = request.args.get("state")
+    city = request.args.get("city")
+    style = request.args.get("style")
     location = request.args.get("location")
+
+    query = "SELECT * FROM stalls"
+    filters = []
+    params = []
+
+    if state:
+        filters.append("state = ?")
+        params.append(state)
+    if city:
+        filters.append("city = ?")
+        params.append(city)
+    if style:
+        filters.append("style = ?")
+        params.append(style)
+    if location:
+        filters.append("location LIKE ?")
+        params.append(f"%{location}%")
+
+    if filters:
+        query += " WHERE " + " AND ".join(filters)
+
     conn = get_db()
-    rows = conn.execute("SELECT * FROM stalls WHERE location LIKE ?", (f"%{location}%",)).fetchall()
+    rows = conn.execute(query, params).fetchall()
     return jsonify([dict(row) for row in rows])
 
 if __name__ == "__main__":
